@@ -18,6 +18,8 @@ import random
 
 # Third-party libraries
 import numpy as np
+from matplotlib import pyplot as plt
+from mpl_toolkits.mplot3d import axes3d
 
 class Network(object):
 
@@ -37,6 +39,9 @@ class Network(object):
         self.biases = [np.random.randn(y, 1) for y in sizes[1:]]
         self.weights = [np.random.randn(y, x)
                         for x, y in zip(sizes[:-1], sizes[1:])]
+        self.numberCorrect = []
+        self.currentHigh = 0
+
 
     def feedforward(self, a):
         """Return the output of the network if ``a`` is input."""
@@ -44,7 +49,7 @@ class Network(object):
             a = sigmoid(np.dot(w, a)+b)
         return a
 
-    def SGD(self, training_data, epochs, mini_batch_size, eta,
+    def SGD(self, training_data, epochs, mini_batch_size, eta, graphing_mode,
             test_data=None):
         """Train the neural network using mini-batch stochastic
         gradient descent.  The ``training_data`` is a list of tuples
@@ -57,6 +62,8 @@ class Network(object):
 
         training_data = list(training_data)
         n = len(training_data)
+         #for displaying current high score
+
 
         if test_data:
             test_data = list(test_data)
@@ -69,10 +76,18 @@ class Network(object):
                 for k in range(0, n, mini_batch_size)]
             for mini_batch in mini_batches:
                 self.update_mini_batch(mini_batch, eta)
-            if test_data:
-                print("Epoch {} : {} / {}".format(j,self.evaluate(test_data),n_test));
+            if test_data: # and j == epochs-1:
+                eval_data = self.evaluate(test_data)
+                self.numberCorrect.append(eval_data)
+                if eval_data > self.currentHigh:
+                    self.currentHigh = eval_data
+                    if graphing_mode is False:
+                        print("Epoch {} : {} / {}".format(j, eval_data, n_test), end=" ");
+                        print(" -> Current High Score")
+                elif graphing_mode is False:
+                    print("Epoch {} : {} / {}".format(j, eval_data, n_test));
             else:
-                print("Epoch {} complete".format(j))
+                print("Epoch {} : {} / {}".format(j, self.evaluate(test_data), n_test))
 
     def update_mini_batch(self, mini_batch, eta):
         """Update the network's weights and biases by applying
@@ -139,6 +154,28 @@ class Network(object):
         \partial a for the output activations."""
         return (output_activations-y)
 
+    def graphEpochs(self, epochs):
+        epoch_count = list(range(0, epochs))
+        plt.plot(epoch_count, self.numberCorrect)
+        plt.show()
+
+    def graph3d(self, training_data, neuronsPerLayer,numberOfLayers, test_data):
+        neuron_list = list(range(0,neuronsPerLayer))
+        layer_list = list(range(0,numberOfLayers))
+        z_value_matrix = np.zeros([numberOfLayers,neuronsPerLayer])
+        test_data_array = test_data
+
+        for layer_idx in range(1,numberOfLayers+1):   #true layer notation
+            for neuron_idx in range(1,neuronsPerLayer+1):
+                network_array = [784, 10]
+                for idx in range(0, layer_idx):       #generates the dummy array
+                    network_array.insert(1, neuron_idx)
+                dummy_net = Network(network_array)
+                dummy_net.SGD(training_data, 3, 10, 3.0, False , test_data_array)   #test_data is resetting to 0 after first network run
+                #try to save a local copy of test_data
+                z_value_matrix[layer_idx-1, neuron_idx-1] = dummy_net.currentHigh
+        return z_value_matrix
+
 #### Miscellaneous functions
 def sigmoid(z):
     """The sigmoid function."""
@@ -147,3 +184,4 @@ def sigmoid(z):
 def sigmoid_prime(z):
     """Derivative of the sigmoid function."""
     return sigmoid(z)*(1-sigmoid(z))
+
